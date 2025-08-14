@@ -141,9 +141,13 @@ Generate only valid pandas code that answers the question. Return code between `
 ### Setup
 
 ```python
-import google.generativeai as genai
-genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
-model = genai.GenerativeModel('gemini-1.5-flash')
+from google import genai
+client = genai.Client(api_key=api_key)
+response = client.model.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+            generation_config={'temperature': temperature}
+        )
 ```
 
 ### Two-Stage Process
