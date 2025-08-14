@@ -53,6 +53,10 @@ This chatbot helps you analyze financial data using natural language queries.
 Ask questions about revenue, expenses, profits, and other financial metrics.
 """)
 
+# Settings
+st.sidebar.subheader("⚙️ Settings")
+temperature = st.sidebar.slider("Response Creativity", 0.0, 1.0, 0.7)
+
 # Load data and schema
 try:
     with st.spinner("Loading financial data..."):
@@ -124,7 +128,7 @@ if prompt := st.chat_input("Ask a question about the financial data..."):
                     unique_values["companies"],
                     unique_values["date_range"],
                     unique_values["accounts"],
-                    temperature=0.7
+                    temperature
                 )
 
                 # Show generated code in an expander
@@ -139,7 +143,7 @@ if prompt := st.chat_input("Ask a question about the financial data..."):
                     response_model_client,
                     execution_result,
                     prompt,
-                    temperature=0.7
+                    temperature
                 )
 
                 # Display the natural language response
@@ -187,7 +191,3 @@ if st.sidebar.button("Export Chat History"):
         file_name="financial_chat_history.txt",
         mime="text/plain"
     )
-
-# Settings
-st.sidebar.subheader("⚙️ Settings")
-temperature = st.sidebar.slider("Response Creativity", 0.0, 1.0, 0.7)

@@ -1,8 +1,8 @@
-# 📊 Financial Data Chatbot
+# Financial Data Chatbot
 
 A Streamlit-based chatbot that allows users to query financial data using natural language. The chatbot leverages Google Gemini Flash 1.5 to generate pandas code from user queries and then executes that code to retrieve and analyze financial data.
 
-## 🚀 Features
+## Features
 
 - **Natural Language Queries**: Ask financial questions in plain English
 - **Data Visualization**: Automatic chart generation for numerical data
@@ -11,7 +11,7 @@ A Streamlit-based chatbot that allows users to query financial data using natura
 - **Example Queries**: Get started quickly with sample questions
 - **Data Overview**: Sidebar with information about available companies, countries, and accounts
 
-## 🏗️ Architecture
+## Architecture
 
 ```mermaid
 graph TD
@@ -32,7 +32,7 @@ graph TD
 5. **Result Processing**: Send raw results back to Gemini
 6. **Response Generation**: Gemini creates natural language response
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 financial-chatbot/
@@ -88,7 +88,7 @@ streamlit run app.py
 
 The app will open in your default browser at `http://localhost:8501`.
 
-## 🧠 Key Implementation Details
+## Key Implementation Details
 
 ### Data Loading Strategy
 
@@ -120,7 +120,7 @@ Generate only valid pandas code that answers the question. Return code between `
 - Whitelist allowed operations (no file I/O, imports, etc.)
 - Catch and handle execution errors gracefully
 
-## 🎨 Streamlit App Features
+## Streamlit App Features
 
 ### Main Interface
 
@@ -136,7 +136,7 @@ Generate only valid pandas code that answers the question. Return code between `
 - Query examples
 - Settings (temperature, model parameters)
 
-## 🤖 Gemini Integration
+## Gemini Integration
 
 ### Setup
 
@@ -151,9 +151,9 @@ model = genai.GenerativeModel('gemini-1.5-flash')
 1. **Query Generation**: Generate pandas code
 2. **Response Formatting**: Convert results to natural language
 
-## ☁️ Deployment Strategy
+## Deployment Strategy
 
-### Streamlit Community Cloud (Recommended)
+### Streamlit Community Cloud
 
 1. Push to GitHub (with `.env` in `.gitignore`)
 2. Go to [share.streamlit.io](https://share.streamlit.io)
@@ -161,15 +161,7 @@ model = genai.GenerativeModel('gemini-1.5-flash')
 4. Add secrets in dashboard
 5. Deploy
 
-### Steps
-
-1. Push to GitHub (with `.env` in `.gitignore`)
-2. Go to share.streamlit.io
-3. Connect repository
-4. Add secrets in dashboard
-5. Deploy
-
-## 📈 Sample Queries
+## Sample Queries
 
 - "What is the total revenue for Falabella Retail in 2023?"
 - "Compare expenses between Chile and Peru for Sodimac"
@@ -177,36 +169,9 @@ model = genai.GenerativeModel('gemini-1.5-flash')
 - "What is the revenue growth of Q2 vs LY for Falabella retail Chile?"
 - "Show me the operating margin for all companies in USD"
 
-## 📚 Dependencies
-
-- `streamlit==1.29.0`: Web framework
-- `pandas==2.1.4`: Data manipulation
-- `openpyxl==3.1.2`: Excel file reading
-- `google-generativeai==0.3.2`: Google Gemini API
-- `python-dotenv==1.0.0`: Environment variable management
-- `plotly==5.17.0`: Data visualization
-
-## 🔒 Security Considerations
+## Security Considerations
 
 - API keys are stored in environment variables
 - Generated code is validated using the `ast` module
 - Only safe pandas operations are allowed
 - No file I/O or system commands are permitted
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Thanks to Google for providing the Gemini API
-- Thanks to the Streamlit team for the excellent framework
-- Thanks to all the open-source libraries used in this project
