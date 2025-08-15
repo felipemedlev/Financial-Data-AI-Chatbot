@@ -102,8 +102,11 @@ def validate_and_execute_code(code: str, df) -> Any:
         }
 
         f = io.StringIO()
+        globals_with_pd = globals().copy()
+        globals_with_pd['pd'] = pd
+        globals_with_pd['np'] = np
         with redirect_stdout(f):
-            exec(code, globals(), local_namespace)
+            exec(code, globals_with_pd, local_namespace)
 
         output = f.getvalue()
         if output:
