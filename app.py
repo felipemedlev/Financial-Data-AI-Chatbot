@@ -14,7 +14,7 @@ from utils.response_formatter import configure_gemini as configure_gemini_rf, fo
 
 # Configure Gemini models
 try:
-    model_name = "gemini-2.5-flash"
+    model_name = "gemini-1.5-flash"
     if not os.getenv('GOOGLE_API_KEY'):
         raise ValueError("GOOGLE_API_KEY environment variable not set")
     query_model_client = configure_gemini_qg()
