@@ -2,6 +2,7 @@ from google import genai
 from google.genai import types
 import os
 from typing import Any
+from datetime import datetime
 
 def configure_gemini():
     """Configure the Gemini API with the API key."""
@@ -13,45 +14,53 @@ def configure_gemini():
     client = genai.Client(api_key=api_key)
     return client.models
 
-def format_results_as_natural_language(model_client, model_name, results: Any, user_question: str,
-                                       temperature: float = 0.7) -> str:
+def format_results_as_natural_language(
+    client,
+    model_name,
+    formatter_input,
+    prompt,
+    temperature,
+    chat_history=None
+):
+    """Format results with chat history context."""
+    # Get current date dynamically
+    current_date = datetime.now()
+
+    system_prompt = f"""You are a financial analyst assistant. Today's date is {current_date.strftime('%B %d, %Y')}.
+    Any data from before this date should be treated as historical data, not forecasts.
+    Only treat data after {current_date.strftime('%B %Y')} as forecasts/budgets.
+    If no currency is specified, assume the default currency is Dolares (USD).
+    If you don't have enough information to answer the question, ask for clarifications.
     """
-    Format the results as natural language using Gemini.
 
-    Parameters:
-    model_client: Configured Gemini model client
-    results (Any): Results from pandas code execution
-    user_question (str): Original user question
+    # Create context from chat history
+    context = ""
+    if chat_history:
+        context = "\n".join([f"{m['role']}: {m['content']}" for m in chat_history[-3:]])  # Last 3 messages
 
-    Returns:
-    str: Natural language response
-    """
-    # Convert results to string for the prompt
-    results_str = str(results)
+    # Add context to your existing prompt
+    enhanced_prompt = f"""
+    System: {system_prompt}
 
-    prompt = f"""
-    You are a financial data analyst. Given the results of a data analysis and the original question,
-    create a clear, concise natural language response that answers the user's question.
+    Previous conversation:
+    {context}
 
-    ORIGINAL QUESTION: {user_question}
+    Current question: {prompt}
 
-    RESULTS:
-    {results_str}
+    Given these results:
+    {formatter_input}
 
-    Please provide a clear, concise answer to the original question based on the results.
-    Include specific numbers and trends where relevant.
-    Format the response in a professional, easy-to-understand manner.
-    If the results don't directly answer the question, explain why.
+    Please provide a natural language response explaining the results. Remember that any data
+    from before {current_date.strftime('%B %Y')} is historical data, not forecasts.
     """
 
     try:
         # Using the recommended approach from documentation
-        response = model_client.generate_content(
+        response = client.generate_content(
             model=model_name,
-            contents=prompt,
+            contents=enhanced_prompt,
             config=types.GenerateContentConfig(temperature=temperature)
         )
-        print(f"Generated response: {response}")
         if response.text:
             return response.text.strip()
         else:

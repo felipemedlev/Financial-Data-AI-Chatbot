@@ -17,7 +17,7 @@ def configure_gemini():
 
 def generate_pandas_code(model_client, model_name, schema_docs: str, user_question: str,
                         company_list: list, date_range: str, business_units: list,
-                        temperature: float = 0.7) -> str:
+                        temperature: float = 0.7, chat_history=None) -> str:
     """
     Generate pandas code using Gemini based on the user question and schema.
 
@@ -32,7 +32,15 @@ def generate_pandas_code(model_client, model_name, schema_docs: str, user_questi
     Returns:
     str: Generated pandas code
     """
-    prompt = f"""
+    # Create context from chat history
+    context = ""
+    if chat_history:
+        context = "\n".join([f"{m['role']}: {m['content']}" for m in chat_history[-3:]])  # Last 3 messages
+
+    # Add context to your existing prompt
+    prompt = f"""Previous conversation:\n{context}\n\nCurrent question: {user_question}
+    Based on this context and the current question, generate Python pandas code that...
+
     You are a financial data analyst. Given this schema and user question, generate pandas code.
 
     SCHEMA:
@@ -48,7 +56,8 @@ def generate_pandas_code(model_client, model_name, schema_docs: str, user_questi
     Generate only valid pandas code that answers the question. Return code between ```python and ```.
     The code should work with a DataFrame named 'df' that contains the financial data.
     Make sure to handle potential errors and edge cases.
-    Always comment your code to explain the logic.
+    Dont comment your code to explain the logic.
+    Always assign the main result to a variable named result.
     """
 
     try:
@@ -71,7 +80,7 @@ def generate_pandas_code(model_client, model_name, schema_docs: str, user_questi
 
 def validate_and_execute_code(code: str, df) -> Any:
     """
-    Validate and execute the generated pandas code safely.
+    Execute the generated pandas code without safety restrictions.
 
     Parameters:
     code (str): Python code to execute
@@ -81,63 +90,27 @@ def validate_and_execute_code(code: str, df) -> Any:
     Any: Result of code execution
     """
     try:
-        # Parse the code to check for potentially unsafe operations
-        tree = ast.parse(code)
-
-        # Check for unsafe operations (basic security check)
-        unsafe_nodes = [node for node in ast.walk(tree)
-                       if isinstance(node, (ast.Import, ast.ImportFrom, ast.Call))
-                       and hasattr(node, 'func') and hasattr(node.func, 'id')
-                       and node.func.id in ['open', 'exec', 'eval']]
-
-        if unsafe_nodes:
-            raise ValueError("Code contains unsafe operations")
-
-        # Create a safe execution environment with necessary built-ins
-        safe_builtins = {
-            'print': print,
-            'len': len,
-            'sum': sum,
-            'int': int,
-            'float': float,
-            'str': str,
-            'bool': bool,
-            'list': list,
-            'dict': dict,
-            'tuple': tuple,
-            'range': range,
-            'min': min,
-            'max': max,
-            'abs': abs,
-            'round': round,
-        }
-
-        # Global namespace (contains built-ins)
-        global_namespace = {
-            '__builtins__': safe_builtins,
-        }
-
-        # Local namespace (contains data and libraries)
-        local_namespace = {
-            'df': df,
-            'pd': __import__('pandas'),
-        }
-
-        # Capture print output
+        import pandas as pd
+        import numpy as np
         import io
         from contextlib import redirect_stdout
 
+        local_namespace = {
+            'df': df,
+            'pd': pd,
+            'np': np,
+        }
+
         f = io.StringIO()
         with redirect_stdout(f):
-            # Execute the code with separate global and local namespaces
-            exec(code, global_namespace, local_namespace)
+            exec(code, globals(), local_namespace)
 
         output = f.getvalue()
+        if output:
+            print(output)
 
-        # Try to get the result (assuming it's stored in a variable named 'result')
         result = local_namespace.get('result', 'No result variable found')
-
-        # Return both output and result
         return {'output': output, 'result': result}
+
     except Exception as e:
         return f"Error executing code: {str(e)}"

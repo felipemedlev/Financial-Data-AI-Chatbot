@@ -11,11 +11,10 @@ load_dotenv()
 from utils.data_loader import load_financial_data
 from utils.query_generator import configure_gemini as configure_gemini_qg, generate_pandas_code, validate_and_execute_code
 from utils.response_formatter import configure_gemini as configure_gemini_rf, format_results_as_natural_language, format_results_as_table
-from utils.chat_history import load_chat_history, save_chat_history, clear_chat_history
 
 # Configure Gemini models
 try:
-    model_name = "gemini-2.5-flash-lite"
+    model_name = "gemini-2.5-flash"
     if not os.getenv('GOOGLE_API_KEY'):
         raise ValueError("GOOGLE_API_KEY environment variable not set")
     query_model_client = configure_gemini_qg()
@@ -44,8 +43,9 @@ def get_unique_values(df):
     }
 
 # Initialize session state
-# Initialize or load chat history
-st.session_state.messages = load_chat_history()
+# Initialize or load chat history (in-memory only)
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
 # Streamlit app
 st.set_page_config(page_title="Financial Data Chatbot", page_icon="📊", layout="wide")
@@ -133,7 +133,8 @@ if prompt := st.chat_input("Ask a question about the financial data..."):
                     unique_values["companies"],
                     unique_values["date_range"],
                     unique_values["accounts"],
-                    temperature
+                    temperature,
+                    chat_history=st.session_state.messages  # Add this parameter
                 )
 
                 # Show generated code in an expander
@@ -142,6 +143,7 @@ if prompt := st.chat_input("Ask a question about the financial data..."):
 
                 # Execute the generated code
                 execution_result = validate_and_execute_code(generated_code, df)
+                print(f"Execution result: {execution_result}")
 
                 # Handle the new return format from validate_and_execute_code
                 if isinstance(execution_result, dict):
@@ -161,16 +163,22 @@ if prompt := st.chat_input("Ask a question about the financial data..."):
                     model_name,
                     formatter_input,
                     prompt,
-                    temperature
+                    temperature,
+                    chat_history=st.session_state.messages
                 )
 
                 # Display the natural language response
                 st.markdown(natural_language_response)
 
                 # Display results as table if possible
-                # Extract the appropriate data for table formatting
-                table_data = execution_result.get('result', '') if isinstance(execution_result, dict) else execution_result
-                if table_data is not None and not isinstance(table_data, str) or (isinstance(table_data, str) and not table_data.startswith("Error")):
+                if isinstance(execution_result, dict):
+                    table_data = execution_result.get('result')
+                    if table_data is None:
+                        table_data = execution_result.get('output', '')
+                else:
+                    table_data = execution_result
+
+                if table_data is not None and (not isinstance(table_data, str) or (isinstance(table_data, str) and not table_data.startswith("Error"))):
                     with st.expander("📋 View Results Table", expanded=False):
                         table_format = format_results_as_table(table_data)
                         st.markdown(table_format)
@@ -203,9 +211,6 @@ if prompt := st.chat_input("Ask a question about the financial data..."):
                 st.error(error_message)
                 st.session_state.messages.append({"role": "assistant", "content": error_message})
 
-    # Save chat history after each interaction
-    save_chat_history(st.session_state.messages)
-
 # Export and management functionality
 st.sidebar.subheader("💾 Chat Management")
 if st.sidebar.button("Export Chat History"):
@@ -218,5 +223,5 @@ if st.sidebar.button("Export Chat History"):
     )
 
 if st.sidebar.button("Clear Chat History"):
-    clear_chat_history()
+    st.session_state.messages = []
     st.rerun()
