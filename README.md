@@ -1,5 +1,7 @@
 # Financial Data Chatbot
 
+![Chatbot Demo](src/chatbot%20AI.gif)
+
 A Streamlit-based chatbot that allows users to query financial data using natural language. The chatbot leverages Google Gemini Flash 2.5 Lite to generate pandas code from user queries and then executes that code to retrieve and analyze financial data.
 
 ## Features
