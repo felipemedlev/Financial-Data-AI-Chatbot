@@ -1,4 +1,5 @@
 from google import genai
+from google.genai import types
 import os
 from typing import Any
 
@@ -12,7 +13,7 @@ def configure_gemini():
     client = genai.Client(api_key=api_key)
     return client.models
 
-def format_results_as_natural_language(model_client, results: Any, user_question: str,
+def format_results_as_natural_language(model_client, model_name, results: Any, user_question: str,
                                        temperature: float = 0.7) -> str:
     """
     Format the results as natural language using Gemini.
@@ -46,10 +47,11 @@ def format_results_as_natural_language(model_client, results: Any, user_question
     try:
         # Using the recommended approach from documentation
         response = model_client.generate_content(
-            model='gemini-2.5-flash',
+            model=model_name,
             contents=prompt,
-            generation_config={'temperature': temperature}
+            config=types.GenerateContentConfig(temperature=temperature)
         )
+        print(f"Generated response: {response}")
         if response.text:
             return response.text.strip()
         else:

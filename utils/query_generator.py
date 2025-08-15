@@ -1,4 +1,5 @@
 from google import genai
+from google.genai import types
 import os
 from typing import Dict, Any
 import ast
@@ -14,7 +15,7 @@ def configure_gemini():
     client = genai.Client(api_key=api_key)
     return client.models
 
-def generate_pandas_code(model_client, schema_docs: str, user_question: str,
+def generate_pandas_code(model_client, model_name, schema_docs: str, user_question: str,
                         company_list: list, date_range: str, business_units: list,
                         temperature: float = 0.7) -> str:
     """
@@ -53,9 +54,9 @@ def generate_pandas_code(model_client, schema_docs: str, user_question: str,
     try:
         # Using the recommended approach from documentation
         response = model_client.generate_content(
-            model='gemini-2.5-flash',
+            model=model_name,
             contents=prompt,
-            generation_config={'temperature': temperature}
+            config=types.GenerateContentConfig(temperature=temperature)
         )
         if response.text:
             # Extract code from markdown code block
@@ -92,16 +93,51 @@ def validate_and_execute_code(code: str, df) -> Any:
         if unsafe_nodes:
             raise ValueError("Code contains unsafe operations")
 
-        # Create a safe execution environment
-        safe_dict = {
+        # Create a safe execution environment with necessary built-ins
+        safe_builtins = {
+            'print': print,
+            'len': len,
+            'sum': sum,
+            'int': int,
+            'float': float,
+            'str': str,
+            'bool': bool,
+            'list': list,
+            'dict': dict,
+            'tuple': tuple,
+            'range': range,
+            'min': min,
+            'max': max,
+            'abs': abs,
+            'round': round,
+        }
+
+        # Global namespace (contains built-ins)
+        global_namespace = {
+            '__builtins__': safe_builtins,
+        }
+
+        # Local namespace (contains data and libraries)
+        local_namespace = {
             'df': df,
             'pd': __import__('pandas'),
         }
 
-        # Execute the code
-        exec(code, {"__builtins__": {}}, safe_dict)
+        # Capture print output
+        import io
+        from contextlib import redirect_stdout
+
+        f = io.StringIO()
+        with redirect_stdout(f):
+            # Execute the code with separate global and local namespaces
+            exec(code, global_namespace, local_namespace)
+
+        output = f.getvalue()
 
         # Try to get the result (assuming it's stored in a variable named 'result')
-        return safe_dict.get('result', 'No result variable found')
+        result = local_namespace.get('result', 'No result variable found')
+
+        # Return both output and result
+        return {'output': output, 'result': result}
     except Exception as e:
         return f"Error executing code: {str(e)}"

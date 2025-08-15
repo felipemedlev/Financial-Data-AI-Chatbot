@@ -1,6 +1,6 @@
 # Financial Data Chatbot
 
-A Streamlit-based chatbot that allows users to query financial data using natural language. The chatbot leverages Google Gemini Flash 1.5 to generate pandas code from user queries and then executes that code to retrieve and analyze financial data.
+A Streamlit-based chatbot that allows users to query financial data using natural language. The chatbot leverages Google Gemini Flash 2.5 Lite to generate pandas code from user queries and then executes that code to retrieve and analyze financial data.
 
 ## Features
 
@@ -63,7 +63,7 @@ financial-chatbot/
 1. Clone the repository:
    ```bash
    git clone https://github.com/felipemedlev/Financial-Data-AI-Chatbot
-   cd financial-chatbot
+   cd Financial-Data-AI-Chatbot
    ```
 
 2. Install dependencies:
@@ -144,7 +144,7 @@ Generate only valid pandas code that answers the question. Return code between `
 from google import genai
 client = genai.Client(api_key=api_key)
 response = client.model.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-2.5-flash-lite-06-17',
             contents=prompt,
             generation_config={'temperature': temperature}
         )

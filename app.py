@@ -11,9 +11,13 @@ load_dotenv()
 from utils.data_loader import load_financial_data
 from utils.query_generator import configure_gemini as configure_gemini_qg, generate_pandas_code, validate_and_execute_code
 from utils.response_formatter import configure_gemini as configure_gemini_rf, format_results_as_natural_language, format_results_as_table
+from utils.chat_history import load_chat_history, save_chat_history, clear_chat_history
 
 # Configure Gemini models
 try:
+    model_name = "gemini-2.5-flash-lite"
+    if not os.getenv('GOOGLE_API_KEY'):
+        raise ValueError("GOOGLE_API_KEY environment variable not set")
     query_model_client = configure_gemini_qg()
     response_model_client = configure_gemini_rf()
 except Exception as e:
@@ -40,8 +44,8 @@ def get_unique_values(df):
     }
 
 # Initialize session state
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# Initialize or load chat history
+st.session_state.messages = load_chat_history()
 
 # Streamlit app
 st.set_page_config(page_title="Financial Data Chatbot", page_icon="📊", layout="wide")
@@ -123,6 +127,7 @@ if prompt := st.chat_input("Ask a question about the financial data..."):
                 # Generate pandas code using Gemini
                 generated_code = generate_pandas_code(
                     query_model_client,
+                    model_name,
                     schema_docs,
                     prompt,
                     unique_values["companies"],
@@ -138,10 +143,23 @@ if prompt := st.chat_input("Ask a question about the financial data..."):
                 # Execute the generated code
                 execution_result = validate_and_execute_code(generated_code, df)
 
+                # Handle the new return format from validate_and_execute_code
+                if isinstance(execution_result, dict):
+                    # If we have a dict with output and result, use the output for natural language processing
+                    # and pass both to the formatter
+                    output_content = execution_result.get('output', '')
+                    result_content = execution_result.get('result', '')
+                    # Combine output and result for the formatter
+                    formatter_input = f"Output:\n{output_content}\n\nResult:\n{result_content}"
+                else:
+                    # If it's not a dict, use the original behavior
+                    formatter_input = execution_result
+
                 # Format results as natural language
                 natural_language_response = format_results_as_natural_language(
                     response_model_client,
-                    execution_result,
+                    model_name,
+                    formatter_input,
                     prompt,
                     temperature
                 )
@@ -150,23 +168,27 @@ if prompt := st.chat_input("Ask a question about the financial data..."):
                 st.markdown(natural_language_response)
 
                 # Display results as table if possible
-                if execution_result is not None and not isinstance(execution_result, str) or (isinstance(execution_result, str) and not execution_result.startswith("Error")):
+                # Extract the appropriate data for table formatting
+                table_data = execution_result.get('result', '') if isinstance(execution_result, dict) else execution_result
+                if table_data is not None and not isinstance(table_data, str) or (isinstance(table_data, str) and not table_data.startswith("Error")):
                     with st.expander("📋 View Results Table", expanded=False):
-                        table_format = format_results_as_table(execution_result)
+                        table_format = format_results_as_table(table_data)
                         st.markdown(table_format)
 
                 # Try to create a chart if the data is suitable
                 try:
-                    if hasattr(execution_result, 'plot'):
+                    # Extract the appropriate data for charting
+                    chart_data = execution_result.get('result', '') if isinstance(execution_result, dict) else execution_result
+                    if hasattr(chart_data, 'plot'):
                         st.subheader("📊 Visualization")
-                        st.line_chart(execution_result)
-                    elif isinstance(execution_result, pd.DataFrame) and len(execution_result) > 0:
+                        st.line_chart(chart_data)
+                    elif isinstance(chart_data, pd.DataFrame) and len(chart_data) > 0:
                         # If we have a DataFrame with data, try to create a chart
-                        numeric_columns = execution_result.select_dtypes(include=['number']).columns
+                        numeric_columns = chart_data.select_dtypes(include=['number']).columns
                         if len(numeric_columns) > 0:
                             st.subheader("📊 Visualization")
-                            if len(execution_result) <= 20:  # Only show chart if not too many data points
-                                fig = px.bar(execution_result, x=execution_result.index, y=numeric_columns[0])
+                            if len(chart_data) <= 20:  # Only show chart if not too many data points
+                                fig = px.bar(chart_data, x=chart_data.index, y=numeric_columns[0])
                                 st.plotly_chart(fig, use_container_width=True)
                 except Exception as e:
                     # Silently ignore chart creation errors to avoid disrupting the user experience
@@ -181,8 +203,11 @@ if prompt := st.chat_input("Ask a question about the financial data..."):
                 st.error(error_message)
                 st.session_state.messages.append({"role": "assistant", "content": error_message})
 
-# Export functionality
-st.sidebar.subheader("💾 Export")
+    # Save chat history after each interaction
+    save_chat_history(st.session_state.messages)
+
+# Export and management functionality
+st.sidebar.subheader("💾 Chat Management")
 if st.sidebar.button("Export Chat History"):
     chat_history = "\n".join([f"{msg['role']}: {msg['content']}" for msg in st.session_state.messages])
     st.sidebar.download_button(
@@ -191,3 +216,7 @@ if st.sidebar.button("Export Chat History"):
         file_name="financial_chat_history.txt",
         mime="text/plain"
     )
+
+if st.sidebar.button("Clear Chat History"):
+    clear_chat_history()
+    st.rerun()
