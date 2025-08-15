@@ -79,15 +79,48 @@ def format_results_as_table(results: Any) -> str:
     str: Markdown table representation of results
     """
     try:
-        # If results is a pandas DataFrame, convert to markdown
+        import pandas as pd
+        # If results is a pandas DataFrame, format numbers and convert to markdown
         if hasattr(results, 'to_markdown'):
-            return results.to_markdown(index=False)
-        # If results is a dict, try to format as table
+            df = results.copy()
+            # Format all float/int columns with thousands separator and 2 decimals
+            for col in df.select_dtypes(include=['float', 'int']).columns:
+                df[col] = df[col].apply(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
+            return df.to_markdown(index=False)
+        # If results is a dict, check if values are dicts (expand to columns)
         elif isinstance(results, dict):
-            lines = ["| Key | Value |", "| --- | ----- |"]
-            for key, value in results.items():
-                lines.append(f"| {key} | {value} |")
-            return "\n".join(lines)
+            # If all values are dicts, treat as table with columns
+            if all(isinstance(v, dict) for v in results.values()):
+                # Collect all possible subkeys
+                all_subkeys = set()
+                for v in results.values():
+                    all_subkeys.update(v.keys())
+                all_subkeys = list(all_subkeys)
+                # Header
+                header = '| Key | ' + ' | '.join(all_subkeys) + ' |'
+                sep = '| --- ' * (len(all_subkeys)+1) + '|'
+                lines = [header, sep]
+                for key, subdict in results.items():
+                    row = [str(key)]
+                    for subkey in all_subkeys:
+                        value = subdict.get(subkey, "")
+                        if isinstance(value, (int, float)):
+                            value_str = f"{value:,.2f}"
+                        else:
+                            value_str = str(value)
+                        row.append(value_str)
+                    lines.append('| ' + ' | '.join(row) + ' |')
+                return '\n'.join(lines)
+            else:
+                # Fallback: simple key-value table
+                lines = ["| Key | Value |", "| --- | ----- |"]
+                for key, value in results.items():
+                    if isinstance(value, (int, float)):
+                        value_str = f"{value:,.2f}"
+                    else:
+                        value_str = str(value)
+                    lines.append(f"| {key} | {value_str} |")
+                return "\n".join(lines)
         # For other types, just return string representation
         else:
             return str(results)
