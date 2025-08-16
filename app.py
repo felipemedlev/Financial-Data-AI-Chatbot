@@ -57,6 +57,23 @@ This chatbot helps you analyze financial data using natural language queries.
 Ask questions about revenue, expenses, profits, and other financial metrics.
 """)
 
+
+# Chat management buttons at the top of the sidebar
+st.sidebar.subheader("💾 Chat Management")
+col1, col2 = st.sidebar.columns(2)
+with col1:
+    if st.button("Clear Chat History"):
+        st.session_state.messages = []
+        st.rerun()
+with col2:
+    chat_history = "\n".join([f"{msg['role']}: {msg['content']}" for msg in st.session_state.messages])
+    st.download_button(
+        label="Export Chat History",
+        data=chat_history,
+        file_name="financial_chat_history.txt",
+        mime="text/plain"
+    )
+
 # Settings
 st.sidebar.subheader("⚙️ Settings")
 temperature = st.sidebar.slider("Response Creativity", 0.0, 1.0, 0.7)
@@ -79,14 +96,20 @@ with st.sidebar:
     st.write(f"**Date Range:** {unique_values['date_range']}")
     st.write(f"**Total Records:** {len(df):,}")
 
+
     st.subheader("🏢 Companies")
     st.write(", ".join(unique_values["companies"][:10]) + ("..." if len(unique_values["companies"]) > 10 else ""))
+    # Expander to show all companies
+    with st.expander("Show All Companies"):
+        st.markdown("<br>".join(unique_values["companies"]), unsafe_allow_html=True)
 
     st.subheader("🌍 Countries")
     st.write(", ".join(unique_values["countries"]))
 
-    st.subheader("📋 Account Categories")
+    st.subheader("📋 Accounts")
     st.write(", ".join(unique_values["accounts"][:10]) + ("..." if len(unique_values["accounts"]) > 10 else ""))
+    with st.expander("Show All Accounts"):
+        st.markdown("<br>".join(unique_values["accounts"]), unsafe_allow_html=True)
 
     st.subheader("📚 Schema")
     with st.expander("View Schema"):
@@ -102,7 +125,8 @@ with st.sidebar:
     ]
     for i, query in enumerate(example_queries):
         if st.button(query, key=f"example_{i}"):
-            st.session_state.messages.append({"role": "user", "content": query})
+            # Set a special session state variable to trigger prompt processing
+            st.session_state.example_prompt = query
             st.rerun()
 
 # Main chat interface
@@ -113,8 +137,13 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Chat input
-if prompt := st.chat_input("Ask a question about the financial data..."):
+# Unified chat input and example prompt processing
+prompt = st.chat_input("Ask a question about the financial data...")
+if not prompt and "example_prompt" in st.session_state:
+    prompt = st.session_state.example_prompt
+    del st.session_state.example_prompt
+
+if prompt:
     # Add user message to chat history
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -210,18 +239,3 @@ if prompt := st.chat_input("Ask a question about the financial data..."):
                 error_message = f"Sorry, I encountered an error while processing your request: {str(e)}"
                 st.error(error_message)
                 st.session_state.messages.append({"role": "assistant", "content": error_message})
-
-# Export and management functionality
-st.sidebar.subheader("💾 Chat Management")
-if st.sidebar.button("Export Chat History"):
-    chat_history = "\n".join([f"{msg['role']}: {msg['content']}" for msg in st.session_state.messages])
-    st.sidebar.download_button(
-        label="Download Chat History",
-        data=chat_history,
-        file_name="financial_chat_history.txt",
-        mime="text/plain"
-    )
-
-if st.sidebar.button("Clear Chat History"):
-    st.session_state.messages = []
-    st.rerun()

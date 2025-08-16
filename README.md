@@ -2,7 +2,7 @@
 
 ![Chatbot Demo](src/chatbot%20AI.gif)
 
-A Streamlit-based chatbot that allows users to query financial data using natural language. The chatbot leverages Google Gemini Flash 2.5 Lite to generate pandas code from user queries and then executes that code to retrieve and analyze financial data.
+A Streamlit-based chatbot that allows users to query financial data using natural language. The chatbot leverages Google Gemini Flash 2.5 to generate pandas code from user queries and then executes that code to retrieve and analyze financial data.
 
 ## Features
 
@@ -146,7 +146,7 @@ Generate only valid pandas code that answers the question. Return code between `
 from google import genai
 client = genai.Client(api_key=api_key)
 response = client.model.generate_content(
-            model='gemini-2.5-flash-lite-06-17',
+            model='gemini-2.5-flash',
             contents=prompt,
             generation_config={'temperature': temperature}
         )
