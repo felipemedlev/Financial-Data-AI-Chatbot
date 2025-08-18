@@ -69,7 +69,10 @@ financial-chatbot/
 - Python 3.8 or higher
 - Google Gemini API key
 
+
 ### Installation
+
+#### Option 1: Local Setup (without Docker)
 
 1. Clone the repository:
    ```bash
@@ -77,7 +80,7 @@ financial-chatbot/
    cd Financial-Data-AI-Chatbot
    ```
 
-2. Install dependencies:
+2. Install dependencies locally (required only for local runs):
    ```bash
    pip install -r requirements.txt
    ```
@@ -90,6 +93,25 @@ financial-chatbot/
    ```
    GOOGLE_API_KEY=your_actual_api_key_here
    ```
+
+#### Option 2: Using Docker
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/felipemedlev/Financial-Data-AI-Chatbot
+   cd Financial-Data-AI-Chatbot
+   ```
+
+2. Set up environment variables:
+   ```bash
+   cp .env.example .env
+   ```
+   Then edit `.env` and add your Google API key:
+   ```
+   GOOGLE_API_KEY=your_actual_api_key_here
+   ```
+
+> **Note:** You do NOT need to run `pip install` if you are using Docker. All dependencies are installed inside the container during the build process.
 
 
 ### Running the Application
