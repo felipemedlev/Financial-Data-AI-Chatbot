@@ -1,16 +1,21 @@
 import streamlit as st
 import pandas as pd
 import os
-import plotly.express as px
+
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
+
 # Import our utility functions
 from utils.data_loader import load_financial_data
-from utils.query_generator import configure_gemini as configure_gemini_qg, generate_pandas_code, validate_and_execute_code
-from utils.response_formatter import configure_gemini as configure_gemini_rf, format_results_as_natural_language, format_results_as_table
+from utils.query_generator import configure_gemini as configure_gemini_qg
+from utils.response_formatter import configure_gemini as configure_gemini_rf
+
+# Modularized UI and chat logic
+from utils.ui import render_sidebar, render_chat
+from utils.chat_logic import process_user_prompt
 
 # Configure Gemini models
 try:
@@ -88,54 +93,23 @@ except Exception as e:
     st.error(f"Error loading data: {str(e)}")
     st.stop()
 
-# Sidebar
+
+# Sidebar rendering
+example_queries = [
+    "What is the total revenue for Falabella Retail in 2023?",
+    "Compare expenses between Chile and Peru for Sodimac",
+    "Show me the profit trend for Tottus over the last 3 years",
+    "What is the revenue growth of Q2 vs LY for Falabella retail Chile?",
+    "Show me the operating margin for all companies in USD"
+]
 with st.sidebar:
-    st.header("📈 Data Overview")
-    st.write(f"**Companies:** {len(unique_values['companies'])}")
-    st.write(f"**Countries:** {len(unique_values['countries'])}")
-    st.write(f"**Date Range:** {unique_values['date_range']}")
-    st.write(f"**Total Records:** {len(df):,}")
+    unique_values["total_records"] = len(df)
+    render_sidebar(unique_values, schema_docs, example_queries)
 
-
-    st.subheader("🏢 Companies")
-    st.write(", ".join(unique_values["companies"][:10]) + ("..." if len(unique_values["companies"]) > 10 else ""))
-    # Expander to show all companies
-    with st.expander("Show All Companies"):
-        st.markdown("<br>".join(unique_values["companies"]), unsafe_allow_html=True)
-
-    st.subheader("🌍 Countries")
-    st.write(", ".join(unique_values["countries"]))
-
-    st.subheader("📋 Accounts")
-    st.write(", ".join(unique_values["accounts"][:10]) + ("..." if len(unique_values["accounts"]) > 10 else ""))
-    with st.expander("Show All Accounts"):
-        st.markdown("<br>".join(unique_values["accounts"]), unsafe_allow_html=True)
-
-    st.subheader("📚 Schema")
-    with st.expander("View Schema"):
-        st.markdown(schema_docs)
-
-    st.subheader("💡 Example Queries")
-    example_queries = [
-        "What is the total revenue for Falabella Retail in 2023?",
-        "Compare expenses between Chile and Peru for Sodimac",
-        "Show me the profit trend for Tottus over the last 3 years",
-        "What is the revenue growth of Q2 vs LY for Falabella retail Chile?",
-        "Show me the operating margin for all companies in USD"
-    ]
-    for i, query in enumerate(example_queries):
-        if st.button(query, key=f"example_{i}"):
-            # Set a special session state variable to trigger prompt processing
-            st.session_state.example_prompt = query
-            st.rerun()
 
 # Main chat interface
-st.subheader("💬 Chat")
+render_chat(st.session_state.messages)
 
-# Display chat messages
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
 
 # Unified chat input and example prompt processing
 prompt = st.chat_input("Ask a question about the financial data...")
@@ -144,97 +118,24 @@ if not prompt and "example_prompt" in st.session_state:
     del st.session_state.example_prompt
 
 if prompt:
-    # Add user message to chat history
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
-
-    # Process the user's query
     with st.chat_message("assistant"):
         with st.spinner("Analyzing..."):
             try:
-                # Generate pandas code using Gemini
-                generated_code = generate_pandas_code(
-                    query_model_client,
-                    model_name,
-                    schema_docs,
+                natural_language_response = process_user_prompt(
                     prompt,
-                    unique_values["companies"],
-                    unique_values["date_range"],
-                    unique_values["accounts"],
-                    temperature,
-                    chat_history=st.session_state.messages  # Add this parameter
-                )
-
-                # Show generated code in an expander
-                with st.expander("🔍 View Generated Code", expanded=False):
-                    st.code(generated_code, language="python")
-
-                # Execute the generated code
-                execution_result = validate_and_execute_code(generated_code, df)
-                print(f"Execution result: {execution_result}")
-
-                # Handle the new return format from validate_and_execute_code
-                if isinstance(execution_result, dict):
-                    # If we have a dict with output and result, use the output for natural language processing
-                    # and pass both to the formatter
-                    output_content = execution_result.get('output', '')
-                    result_content = execution_result.get('result', '')
-                    # Combine output and result for the formatter
-                    formatter_input = f"Output:\n{output_content}\n\nResult:\n{result_content}"
-                else:
-                    # If it's not a dict, use the original behavior
-                    formatter_input = execution_result
-
-                # Format results as natural language
-                natural_language_response = format_results_as_natural_language(
+                    df,
+                    schema_docs,
+                    unique_values,
+                    query_model_client,
                     response_model_client,
                     model_name,
-                    formatter_input,
-                    prompt,
                     temperature,
-                    chat_history=st.session_state.messages
+                    st.session_state.messages
                 )
-
-                # Display the natural language response
-                st.markdown(natural_language_response)
-
-                # Display results as table if possible
-                if isinstance(execution_result, dict):
-                    table_data = execution_result.get('result')
-                    if table_data is None:
-                        table_data = execution_result.get('output', '')
-                else:
-                    table_data = execution_result
-
-                if table_data is not None and (not isinstance(table_data, str) or (isinstance(table_data, str) and not table_data.startswith("Error"))):
-                    with st.expander("📋 View Results Table", expanded=False):
-                        table_format = format_results_as_table(table_data)
-                        st.markdown(table_format)
-
-                # Try to create a chart if the data is suitable
-                try:
-                    # Extract the appropriate data for charting
-                    chart_data = execution_result.get('result', '') if isinstance(execution_result, dict) else execution_result
-                    if hasattr(chart_data, 'plot'):
-                        st.subheader("📊 Visualization")
-                        st.line_chart(chart_data)
-                    elif isinstance(chart_data, pd.DataFrame) and len(chart_data) > 0:
-                        # If we have a DataFrame with data, try to create a chart
-                        numeric_columns = chart_data.select_dtypes(include=['number']).columns
-                        if len(numeric_columns) > 0:
-                            st.subheader("📊 Visualization")
-                            if len(chart_data) <= 20:  # Only show chart if not too many data points
-                                fig = px.bar(chart_data, x=chart_data.index, y=numeric_columns[0])
-                                st.plotly_chart(fig, use_container_width=True)
-                except Exception as e:
-                    # Silently ignore chart creation errors to avoid disrupting the user experience
-                    # In a production environment, you might want to log this error for debugging
-                    pass
-
-                # Add assistant response to chat history
                 st.session_state.messages.append({"role": "assistant", "content": natural_language_response})
-
             except Exception as e:
                 error_message = f"Sorry, I encountered an error while processing your request: {str(e)}"
                 st.error(error_message)

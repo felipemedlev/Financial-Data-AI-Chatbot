@@ -1,3 +1,12 @@
+
+<!-- Tech Stack Badges -->
+![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)
+![Streamlit](https://img.shields.io/badge/Streamlit-Enabled-ff4b4b?logo=streamlit)
+![Google Gemini](https://img.shields.io/badge/Google%20Gemini-API-green?logo=google)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ed?logo=docker)
+![Pandas](https://img.shields.io/badge/Pandas-Data%20Analysis-150458?logo=pandas)
+![Plotly](https://img.shields.io/badge/Plotly-Visualization-3f4f75?logo=plotly)
+
 # Financial Data Chatbot
 
 ![Chatbot Demo](src/chatbot%20AI.gif)
@@ -82,13 +91,30 @@ financial-chatbot/
    GOOGLE_API_KEY=your_actual_api_key_here
    ```
 
+
 ### Running the Application
 
+#### Option 1: Local (without Docker)
 ```bash
 streamlit run app.py
 ```
-
 The app will open in your default browser at `http://localhost:8501`.
+
+#### Option 2: Using Docker
+
+1. **Build the Docker image:**
+   ```bash
+   docker build -t financial-chatbot .
+   ```
+2. **Run the Docker container:**
+   ```bash
+   docker run -p 8501:8501 --env-file .env financial-chatbot
+   ```
+   - This maps port 8501 in the container to your local machine.
+   - The `--env-file .env` flag loads your environment variables (API keys, etc).
+
+3. **Access the app:**
+   Open your browser and go to [http://localhost:8501](http://localhost:8501)
 
 ## Key Implementation Details
 
